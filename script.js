@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let rangeChartInstance = null; // To hold the chart instance
 
-    function calculatePowerRequired(speedKmh, totalWeightKg, terrain) {
+    function calculatePowerRequired(speedKmh, totalWeightKg, terrain, motorNominalPower) {
         if (speedKmh <= 0) return 0; // No power required if not moving
 
         const speedMps = speedKmh * 1000 / 3600;
@@ -41,6 +41,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (P_total_mechanical <= 0) return 0; // e.g. strong downhill, not modeled for positive power consumption
 
+        const electricalPowerRequiredByMotor = P_total_mechanical / etaMotor; // etaMotor is just motor efficiency
+        if (electricalPowerRequiredByMotor > motorNominalPower) {
+            return Infinity; // Motor cannot sustain this mechanical output
+        }
+
+        // If motor can sustain it, P_battery is based on total efficiency (motor + drivetrain)
         const P_battery = P_total_mechanical / etaTotal;
         return P_battery; // Watts
     }
@@ -50,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const batteryCapacity = parseFloat(document.getElementById('batteryCapacity').value);
         const maxSpeedKmh = parseFloat(document.getElementById('maxSpeed').value);
-        const motorPower = parseFloat(document.getElementById('motorPower').value); // Not directly used in this range calc version
+        const motorPower = parseFloat(document.getElementById('motorPower').value);
         const totalWeight = parseFloat(document.getElementById('totalWeight').value);
         const terrain = document.getElementById('terrain').value;
 
@@ -64,22 +70,23 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const powerAtMaxSpeed = calculatePowerRequired(maxSpeedKmh, totalWeight, terrain);
+        // Pass motorPower to calculatePowerRequired
+        const powerAtMaxSpeed = calculatePowerRequired(maxSpeedKmh, totalWeight, terrain, motorPower);
 
-        let maxRangeKm;
-        if (powerAtMaxSpeed <= 0) {
-            // This case implies that at maxSpeedKmh, the conditions (e.g. downhill) require no power.
-            // For simplicity, if speed > 0 and power <=0, range could be considered very large or "N/A".
-            // Or, if it's because speed was 0, range is 0.
-            // Given our calculatePowerRequired returns 0 for speed 0, this branch means powerAtMaxSpeed is 0 for a non-zero speed.
-             maxRangeKm = Infinity; // Or handle as a special display case
-             resultArea.textContent = `Estimated Maximum Range: Effectively very high (conditions require minimal power).`;
+        if (powerAtMaxSpeed === Infinity) {
+            resultArea.innerHTML = 'Max speed not attainable with this motor power under current conditions. <br>Increase motor power or reduce speed/weight/terrain difficulty.';
+            if (rangeChartInstance) {
+                rangeChartInstance.destroy();
+                rangeChartInstance = null;
+            }
+            return; // Stop further processing
+        } else if (powerAtMaxSpeed <= 0) {
+             resultArea.textContent = `Estimated Maximum Range: Effectively very high (conditions require minimal or no power).`;
         } else {
             const timeToDischargeHours = batteryCapacity / powerAtMaxSpeed;
-            maxRangeKm = timeToDischargeHours * maxSpeedKmh;
+            const maxRangeKm = timeToDischargeHours * maxSpeedKmh;
             resultArea.textContent = `Estimated Maximum Range (at ${maxSpeedKmh} km/h): ${maxRangeKm.toFixed(1)} km`;
         }
-
 
         // Graph Data Generation
         const rangeData = [];
@@ -87,35 +94,40 @@ document.addEventListener('DOMContentLoaded', () => {
         const speedStep = 1; // km/h
 
         for (let currentSpeedKmh = minSpeedGraph; currentSpeedKmh <= maxSpeedKmh; currentSpeedKmh += speedStep) {
-            const powerRequired = calculatePowerRequired(currentSpeedKmh, totalWeight, terrain);
-            let rangeAtSpeed = 0;
+            // Pass motorPower here as well
+            const powerRequired = calculatePowerRequired(currentSpeedKmh, totalWeight, terrain, motorPower);
+            let rangeAtSpeed = null; // Default to null for unattainable speeds
 
-            if (powerRequired > 0) {
+            if (powerRequired > 0 && powerRequired !== Infinity) {
                 const timeToDischarge = batteryCapacity / powerRequired;
                 rangeAtSpeed = timeToDischarge * currentSpeedKmh;
-            } else if (currentSpeedKmh > 0 && powerRequired <=0) {
-                 // If speed > 0 and power required is 0 (e.g. downhill), range is theoretically infinite.
-                 // Cap it for graphing purposes or handle as a special value.
-                 rangeAtSpeed = (maxRangeKm !== Infinity && maxRangeKm > 0) ? maxRangeKm * 1.5 : 500; // Cap at 1.5x calculated max range or 500km
+            } else if (powerRequired === 0 && currentSpeedKmh > 0) { // Speed > 0 and no power needed (e.g. downhill)
+                // Represent very high range as a large number or null based on how Chart.js should show it
+                // For now, let's keep it null to indicate it's off the charts or "infinite"
+                // rangeAtSpeed = 1000; // Arbitrarily large number, or handle differently in tooltip
+                // Or, stick to null and let tooltip explain
             }
-            // if currentSpeedKmh is 0, powerRequired is 0, rangeAtSpeed remains 0, which is correct.
+            // If powerRequired is Infinity or (powerRequired is 0 and speed is 0), rangeAtSpeed remains null or 0 (if speed is 0)
+            if (currentSpeedKmh === 0 && powerRequired === 0) rangeAtSpeed = 0;
+
 
             rangeData.push({ speed: currentSpeedKmh, range: rangeAtSpeed });
         }
 
-        // Add the max speed point if it wasn't part of the loop steps
+        // Add the max speed point if it wasn't part of the loop steps & is attainable
         if (maxSpeedKmh % speedStep !== 0 && maxSpeedKmh > minSpeedGraph) {
-            const powerRequired = calculatePowerRequired(maxSpeedKmh, totalWeight, terrain);
-            let rangeAtSpeed = 0;
-            if (powerRequired > 0) {
-                const timeToDischarge = batteryCapacity / powerRequired;
-                rangeAtSpeed = timeToDischarge * maxSpeedKmh;
-            } else if (maxSpeedKmh > 0 && powerRequired <=0) {
-                rangeAtSpeed = (maxRangeKm !== Infinity && maxRangeKm > 0) ? maxRangeKm * 1.5 : 500;
+            const powerRequiredAtMax = calculatePowerRequired(maxSpeedKmh, totalWeight, terrain, motorPower);
+            let rangeAtMaxSpeedPoint = null;
+            if (powerRequiredAtMax > 0 && powerRequiredAtMax !== Infinity) {
+                const timeToDischarge = batteryCapacity / powerRequiredAtMax;
+                rangeAtMaxSpeedPoint = timeToDischarge * maxSpeedKmh;
+            } else if (powerRequiredAtMax === 0 && maxSpeedKmh > 0) {
+                // rangeAtMaxSpeedPoint = 1000; // or null
             }
-            // Check if the last speed point is already maxSpeedKmh to avoid duplicates
+             if (maxSpeedKmh === 0 && powerRequiredAtMax === 0) rangeAtMaxSpeedPoint = 0;
+
             if (!rangeData.find(d => d.speed === maxSpeedKmh)) {
-                 rangeData.push({ speed: maxSpeedKmh, range: rangeAtSpeed });
+                 rangeData.push({ speed: maxSpeedKmh, range: rangeAtMaxSpeedPoint });
             }
         }
 
@@ -144,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     pointBackgroundColor: 'rgb(75, 192, 192)',
                     pointHoverBackgroundColor: 'rgb(54, 162, 235)',
                     pointHoverBorderColor: 'rgb(54, 162, 235)',
-                    spanGaps: true // Connect line across null data points (e.g. where range was Infinity)
+                    spanGaps: false // Do not connect line across null data points (unattainable speeds)
                 }]
             },
             options: {
@@ -177,20 +189,19 @@ document.addEventListener('DOMContentLoaded', () => {
                                     label += ': ';
                                 }
                                 if (context.parsed.y !== null) {
-                                    // Check if original value was Infinity for special display
                                     const originalDataPoint = rangeData[context.dataIndex];
-                                    if (originalDataPoint && !isFinite(originalDataPoint.range) && originalDataPoint.range > 0) {
-                                        label += 'Very High (effectively unlimited)';
-                                    } else {
+                                    if (originalDataPoint && originalDataPoint.range === null) { // Check if range was explicitly set to null
+                                        if (calculatePowerRequired(originalDataPoint.speed, totalWeight, terrain, motorPower) === Infinity) {
+                                            label += 'Unattainable (motor limit)';
+                                        } else if (originalDataPoint.speed > 0 && calculatePowerRequired(originalDataPoint.speed, totalWeight, terrain, motorPower) <= 0) {
+                                             label += 'Very High (minimal power needed)';
+                                        } else {
+                                            label += 'N/A';
+                                        }
+                                    } else if (context.parsed.y !== null) {
                                         label += context.parsed.y.toFixed(1) + ' km';
-                                    }
-                                } else if (context.dataset.data[context.dataIndex] === null) {
-                                    // This handles the case where data was explicitly null (e.g. Infinity)
-                                    const originalDataPoint = rangeData[context.dataIndex];
-                                     if (originalDataPoint && !isFinite(originalDataPoint.range) && originalDataPoint.range > 0) {
-                                        label += 'Very High (effectively unlimited)';
                                     } else {
-                                        label += 'N/A';
+                                        label += 'N/A'; // Fallback for other null cases
                                     }
                                 }
                                 return label;

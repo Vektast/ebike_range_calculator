@@ -15,7 +15,7 @@ body {
   padding: 30px;
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
-  max-width: 1200px; /* Widen for side-by-side content */
+  max-width: 1600px; /* Increased from 1200px */
   width: 100%;
   box-sizing: border-box;
 }
@@ -105,6 +105,8 @@ h1 {
   border: 1px solid #cccccc; /* Slightly darker border for canvas */
   border-radius: 8px;
   background-color: #fdfdfd; /* Very light background for the chart area itself */
+  min-height: 350px; /* Default height for mobile */
+  margin-top: 20px; /* Default top margin for stacked view */
 }
 
 /* New styles for layout structure */
@@ -130,19 +132,19 @@ h1 {
   }
 
   .form-and-result-column {
-    flex: 1 1 48%; /* Flex properties: grow, shrink, basis */
+    flex: 1 1 35%; /* Smaller portion for form */
     /* min-width: 380px; /* Optional: to prevent too much squishing */
   }
 
   .graph-column {
-    flex: 1 1 48%; /* Flex properties */
-    /* min-width: 380px; /* Optional */
+    flex: 1 1 60%; /* Larger portion for graph */
+    min-height: 600px; /* Ensure column can contain tall chart */
   }
 
   #rangeChart {
     margin-top: 0; /* Remove top margin when side-by-side with form */
-    /* height: auto; /* ensure it scales if width is constrained by column */
-    /* max-width: 100%; /* ensure it doesn't overflow its column */
+    min-height: 600px; /* Or height: 600px; for fixed size */
+    /* max-width: 100%; /* ensure it doesn't overflow its column - width:100% already does this */
   }
 }
 
@@ -179,7 +181,5 @@ h1 {
     padding: 15px;
   }
   /* Ensure chart has some top margin on small screens if it's not 0 by default */
-  #rangeChart {
-    margin-top: 20px;
-  }
+  /* #rangeChart margin-top is handled by its default style now */
 }
