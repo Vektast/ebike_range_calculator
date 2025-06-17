@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-bike Range Calculator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>E-bike Range Calculator</h1>
+
+    <form id="calculatorForm">
+        <div>
+            <label for="batteryCapacity">Battery Capacity (Wh):</label>
+            <input type="number" id="batteryCapacity" name="batteryCapacity" required>
+        </div>
+        <div>
+            <label for="maxSpeed">Maximum Top Speed (km/h):</label>
+            <input type="number" id="maxSpeed" name="maxSpeed" required>
+        </div>
+        <div>
+            <label for="motorPower">Motor Power (W):</label>
+            <input type="number" id="motorPower" name="motorPower" required>
+        </div>
+        <div>
+            <label for="totalWeight">Total Weight (kg):</label>
+            <input type="number" id="totalWeight" name="totalWeight" required>
+        </div>
+        <div>
+            <label for="terrain">Terrain Difficulty:</label>
+            <select id="terrain" name="terrain">
+                <option value="flat">Flat</option>
+                <option value="uphill">Uphill</option>
+                <option value="mixed">Mixed</option>
+            </select>
+        </div>
+        <button type="submit">Calculate Range</button>
+    </form>
+
+    <div id="resultArea"></div>
+
+    <canvas id="rangeChart"></canvas>
+
+    <script src="script.js"></script>
+</body>
+</html>

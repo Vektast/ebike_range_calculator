@@ -1,0 +1,132 @@
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: #f4f4f8; /* Light grayish blue background */
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column; /* Stack elements vertically */
+  align-items: center; /* Center content horizontally */
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.calculator-container {
+  background-color: #ffffff;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
+  max-width: 700px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+h1 {
+  text-align: center;
+  color: #2c3e50; /* Darker blue for heading */
+  margin-bottom: 25px;
+  font-size: 24px;
+}
+
+#calculatorForm div {
+  margin-bottom: 15px; /* Space between form groups */
+}
+
+#calculatorForm label {
+  display: block;
+  margin-bottom: 6px;
+  color: #34495e; /* Slightly softer black for labels */
+  font-weight: bold;
+  font-size: 14px;
+}
+
+#calculatorForm input[type="number"],
+#calculatorForm select {
+  width: 100%; /* Full width relative to parent */
+  padding: 12px;
+  border: 1px solid #bdc3c7; /* Light grey border */
+  border-radius: 6px;
+  box-sizing: border-box;
+  font-size: 16px;
+  transition: border-color 0.3s ease;
+}
+
+#calculatorForm input[type="number"]:focus,
+#calculatorForm select:focus {
+  border-color: #3498db; /* Blue border on focus */
+  outline: none;
+}
+
+#calculatorForm button[type="submit"] {
+  background-color: #3498db; /* Primary blue */
+  color: white;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  width: 100%;
+  transition: background-color 0.3s ease, transform 0.1s ease;
+}
+
+#calculatorForm button[type="submit"]:hover {
+  background-color: #2980b9; /* Darker blue on hover */
+}
+
+#calculatorForm button[type="submit"]:active {
+  transform: translateY(1px); /* Slight press effect */
+}
+
+#resultArea {
+  margin-top: 25px;
+  padding: 18px;
+  background-color: #eaf2f8; /* Light blue tint */
+  border: 1px solid #d0e0eb;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 18px;
+  color: #2c3e50; /* Dark blue text */
+  font-weight: bold;
+}
+
+#resultArea:empty {
+  display: none; /* Hide if no content */
+}
+
+#rangeChart {
+  display: block;
+  width: 100%;
+  max-width: 650px; /* Max width of the chart itself */
+  /* Height is set dynamically by canvas attributes in HTML or by JS if needed,
+     but CSS 'height: auto;' can help maintain aspect ratio if only width is set.
+     However, for canvas, it's best to set width/height attributes directly.
+     The JS already handles canvas size, so this is more for bounding. */
+  margin: 30px auto 0 auto; /* Center chart and provide top margin */
+  border: 1px solid #cccccc; /* Slightly darker border for canvas */
+  border-radius: 8px;
+  background-color: #fdfdfd; /* Very light background for the chart area itself */
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .calculator-container {
+    margin: 10px;
+    padding: 20px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  #calculatorForm input[type="number"],
+  #calculatorForm select,
+  #calculatorForm button[type="submit"] {
+    font-size: 15px;
+    padding: 10px;
+  }
+
+  #resultArea {
+    font-size: 16px;
+    padding: 15px;
+  }
+}
