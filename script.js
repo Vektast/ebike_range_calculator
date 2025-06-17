@@ -20,8 +20,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const calculatorForm = document.getElementById('calculatorForm');
     const resultArea = document.getElementById('resultArea');
-    const rangeChartCanvas = document.getElementById('rangeChart');
-    const ctx = rangeChartCanvas.getContext('2d');
+    // Canvas context will be fetched inside the event listener for Chart.js
+    // const rangeChartCanvas = document.getElementById('rangeChart');
+    // const ctx = rangeChartCanvas.getContext('2d'); // Moved
+
+    let rangeChartInstance = null; // To hold the chart instance
 
     function calculatePowerRequired(speedKmh, totalWeightKg, terrain) {
         if (speedKmh <= 0) return 0; // No power required if not moving
@@ -53,7 +56,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isNaN(batteryCapacity) || isNaN(maxSpeedKmh) || isNaN(totalWeight) || batteryCapacity <= 0 || maxSpeedKmh <= 0 || totalWeight <= 0) {
             resultArea.textContent = "Please enter valid positive numbers for all inputs.";
-            clearCanvas();
+            // clearCanvas(); // Will be handled by Chart.js destroy
+            if (rangeChartInstance) {
+                rangeChartInstance.destroy();
+                rangeChartInstance = null;
+            }
             return;
         }
 
@@ -112,97 +119,97 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // Chart.js implementation
+        const chartCanvas = document.getElementById('rangeChart');
+        const ctx = chartCanvas.getContext('2d');
 
-        drawRangeChart(rangeData, maxSpeedKmh);
-    });
+        if (rangeChartInstance) {
+            rangeChartInstance.destroy();
+        }
 
-    function clearCanvas() {
-        ctx.clearRect(0, 0, rangeChartCanvas.width, rangeChartCanvas.height);
-    }
+        const labels = rangeData.map(item => item.speed);
+        const dataValues = rangeData.map(item => isFinite(item.range) ? item.range : null); // Handle Infinity by making it null for Chart.js
 
-    function drawRangeChart(data, inputMaxSpeed) {
-        clearCanvas();
-        if (!data || data.length === 0) return;
-
-        const padding = 50;
-        const chartWidth = rangeChartCanvas.width - 2 * padding;
-        const chartHeight = rangeChartCanvas.height - 2 * padding;
-
-        // Filter out excessively large/Infinite ranges for scaling, but keep them for potential plotting if needed
-        const finiteRangeData = data.filter(d => isFinite(d.range));
-        const maxRangeGraph = finiteRangeData.length > 0 ? Math.max(...finiteRangeData.map(d => d.range), 0) : 100; // Ensure maxRangeGraph is at least 100 or a sensible default
-        const maxSpeedGraph = Math.max(...data.map(d => d.speed), inputMaxSpeed, 1); // Ensure maxSpeedGraph is at least inputMaxSpeed or 1
-
-        // Draw Axes
-        ctx.beginPath();
-        ctx.moveTo(padding, padding);
-        ctx.lineTo(padding, rangeChartCanvas.height - padding); // Y-axis
-        ctx.lineTo(rangeChartCanvas.width - padding, rangeChartCanvas.height - padding); // X-axis
-        ctx.strokeStyle = '#333';
-        ctx.stroke();
-
-        // Labels
-        ctx.fillStyle = '#333';
-        ctx.textAlign = "center";
-        ctx.fillText("Speed (km/h)", padding + chartWidth / 2, rangeChartCanvas.height - padding / 2.5);
-        ctx.save();
-        ctx.translate(padding / 2.5, padding + chartHeight / 2);
-        ctx.rotate(-Math.PI / 2);
-        ctx.fillText("Range (km)", 0, 0);
-        ctx.restore();
-
-        // Plot Data
-        ctx.beginPath();
-        let firstPoint = true;
-
-        data.forEach(point => {
-            let plotRange = point.range;
-            // If range is infinite or extremely large, cap it at the top of the graph for visualization
-            if (!isFinite(plotRange) || plotRange > maxRangeGraph * 1.1) { // Cap very large values slightly above max
-                plotRange = maxRangeGraph * 1.05;
-            }
-
-            const x = padding + (point.speed / maxSpeedGraph) * chartWidth;
-            const y = (rangeChartCanvas.height - padding) - (plotRange / maxRangeGraph) * chartHeight;
-
-            if (x < padding || x > rangeChartCanvas.width - padding + 5 || y < padding - 5 || y > rangeChartCanvas.height - padding) {
-                // Don't draw points way outside plotting area (can happen with extreme values before capping)
-                // console.warn("Point out of bounds:", point, x, y);
-                return;
-            }
-
-            if (firstPoint) {
-                ctx.moveTo(x, y);
-                firstPoint = false;
-            } else {
-                ctx.lineTo(x, y);
+        rangeChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels, // X-axis labels (speeds)
+                datasets: [{
+                    label: 'Estimated Range (km)', // Legend label
+                    data: dataValues, // Y-axis data (ranges)
+                    borderColor: 'rgb(75, 192, 192)', // Line color
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)', // Optional fill color
+                    tension: 0.1, // Line tension for slight curve
+                    fill: true, // Optional: fill area under line
+                    pointBackgroundColor: 'rgb(75, 192, 192)',
+                    pointHoverBackgroundColor: 'rgb(54, 162, 235)',
+                    pointHoverBorderColor: 'rgb(54, 162, 235)',
+                    spanGaps: true // Connect line across null data points (e.g. where range was Infinity)
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false, // Allows canvas to resize height with CSS if needed
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Speed (km/h)'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Range (km)'
+                        },
+                        beginAtZero: true // Start Y-axis at 0
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        enabled: true,
+                        mode: 'index', // Show tooltips for all datasets at that x-index
+                        intersect: false, // Tooltip appears even if not directly hovering over point
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    // Check if original value was Infinity for special display
+                                    const originalDataPoint = rangeData[context.dataIndex];
+                                    if (originalDataPoint && !isFinite(originalDataPoint.range) && originalDataPoint.range > 0) {
+                                        label += 'Very High (effectively unlimited)';
+                                    } else {
+                                        label += context.parsed.y.toFixed(1) + ' km';
+                                    }
+                                } else if (context.dataset.data[context.dataIndex] === null) {
+                                    // This handles the case where data was explicitly null (e.g. Infinity)
+                                    const originalDataPoint = rangeData[context.dataIndex];
+                                     if (originalDataPoint && !isFinite(originalDataPoint.range) && originalDataPoint.range > 0) {
+                                        label += 'Very High (effectively unlimited)';
+                                    } else {
+                                        label += 'N/A';
+                                    }
+                                }
+                                return label;
+                            },
+                            title: function(context) {
+                               // context is an array of tooltip items
+                               if (context.length > 0) {
+                                   return 'Speed: ' + context[0].label + ' km/h';
+                               }
+                               return '';
+                            }
+                        }
+                    },
+                    legend: {
+                       display: true,
+                       position: 'top'
+                    }
+                }
             }
         });
-        ctx.strokeStyle = '#007bff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Draw Ticks (simplified)
-        ctx.fillStyle = '#333';
-        // X-axis ticks (Speed)
-        for (let i = 0; i <= 5; i++) {
-            const speed = (maxSpeedGraph / 5) * i;
-            const x = padding + (speed / maxSpeedGraph) * chartWidth;
-            ctx.fillText(speed.toFixed(0), x, rangeChartCanvas.height - padding + 15);
-            ctx.beginPath();
-            ctx.moveTo(x, rangeChartCanvas.height - padding -3);
-            ctx.lineTo(x, rangeChartCanvas.height - padding +3);
-            ctx.stroke();
-        }
-        // Y-axis ticks (Range)
-        for (let i = 0; i <= 5; i++) {
-            const range = (maxRangeGraph / 5) * i;
-            const y = (rangeChartCanvas.height - padding) - (range / maxRangeGraph) * chartHeight;
-            ctx.fillText(range.toFixed(0), padding - 25, y + 3);
-             ctx.beginPath();
-            ctx.moveTo(padding -3, y);
-            ctx.lineTo(padding +3, y);
-            ctx.stroke();
-        }
-    }
+    });
 });

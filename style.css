@@ -15,7 +15,7 @@ body {
   padding: 30px;
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
-  max-width: 700px;
+  max-width: 1200px; /* Widen for side-by-side content */
   width: 100%;
   box-sizing: border-box;
 }
@@ -107,10 +107,59 @@ h1 {
   background-color: #fdfdfd; /* Very light background for the chart area itself */
 }
 
-/* Responsive adjustments */
+/* New styles for layout structure */
+.main-content-flex-wrapper {
+  /* Mobile first: defaults to block layout (columns stack) */
+}
+
+.form-and-result-column {
+  /* Mobile first: defaults to block layout */
+}
+
+.graph-column {
+  /* Mobile first: defaults to block layout */
+}
+
+/* Media Query for two-column layout */
+@media (min-width: 992px) {
+  .main-content-flex-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 30px; /* Space between form column and graph column */
+  }
+
+  .form-and-result-column {
+    flex: 1 1 48%; /* Flex properties: grow, shrink, basis */
+    /* min-width: 380px; /* Optional: to prevent too much squishing */
+  }
+
+  .graph-column {
+    flex: 1 1 48%; /* Flex properties */
+    /* min-width: 380px; /* Optional */
+  }
+
+  #rangeChart {
+    margin-top: 0; /* Remove top margin when side-by-side with form */
+    /* height: auto; /* ensure it scales if width is constrained by column */
+    /* max-width: 100%; /* ensure it doesn't overflow its column */
+  }
+}
+
+/* Adjustments for medium screens (tablets) - if needed, or keep simple */
+@media (max-width: 991px) and (min-width: 601px) {
+    .calculator-container {
+        max-width: 90%;
+        padding: 25px;
+    }
+    /* Form elements might already be 100% width, which is fine */
+}
+
+
+/* Responsive adjustments for small screens (existing query) */
 @media (max-width: 600px) {
   .calculator-container {
-    margin: 10px;
+    margin: 10px; /* Reduced margin */
     padding: 20px;
   }
 
@@ -128,5 +177,9 @@ h1 {
   #resultArea {
     font-size: 16px;
     padding: 15px;
+  }
+  /* Ensure chart has some top margin on small screens if it's not 0 by default */
+  #rangeChart {
+    margin-top: 20px;
   }
 }
